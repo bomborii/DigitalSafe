@@ -1,0 +1,151 @@
+/*  
+ * Joshua To
+ * July 2017
+ * 
+ */ 
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.IO;
+
+namespace DigitalSafe
+{
+    public partial class LoginForm : Form
+    {
+        // generates random length and used to select random characters in the alphabet
+        private Random generator = new Random();
+
+        // all valid characters
+        private string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy1234567890_";
+
+        // saved password info - private means other classes cannot see this variable
+        private string password;
+
+        // scrambled password is visible to the password cracking form
+        // let people try to crack this ridiculous level of encryption
+        public string scrambledPassword;
+
+        public LoginForm()
+        {
+            InitializeComponent();
+        }
+
+        /// <summary>
+        /// Scrambles the password so that algorithms are needed to find the true
+        /// password.  
+        /// </summary>
+        private string Scramble(string password)
+        {
+            // scrambles the string 1000 times to make it a random order
+            for (int i = 0; i < 1000; i++)
+            {
+                // index to remove and put at the end of the password
+                int swapLocation = generator.Next(0, password.Length);
+                string letter = password.Substring(swapLocation, 1);
+                password = password.Remove(swapLocation, 1) + letter;
+            }
+            
+            // stores the password as individual characters
+            string[] passwordChars = new string[password.Length];
+            // take apart the password string so each character is an array element
+            for (int i = 0; i < password.Length; i++)
+            {
+                passwordChars[i] = password.Substring(i, 1);
+            }
+
+            password = "";
+            // put sorted characters back into a string, and insert characters into the password
+            int currentChar = 0;
+            for (int i = 0; i < passwordChars.Length; i++)
+            {
+                password += passwordChars[i] + txtUsername.Text.Substring(currentChar, 1);
+                currentChar++;
+                currentChar = currentChar % txtUsername.Text.Length;
+            }
+
+            return password;
+        }
+
+        /// <summary>
+        /// Generates a random password.
+        /// </summary>
+        /// <returns></returns>
+        private string GeneratePassword()
+        {
+            // create random password
+            int lengthOfPassword = txtUsername.Text.Length;
+            // the random password
+            string password = "";
+            // choose random characters from the alphabet for the password.
+            for (int i = 0; i < lengthOfPassword; i++)
+            {
+                password += alphabet.Substring(generator.Next(0, alphabet.Length), 1);
+            }
+
+            // Show the password so that you can see if program works
+            MessageBox.Show("Use this to double-check your solution.  The correct password is: " + password);
+            return password;
+        }
+
+        /// <summary>
+        /// Used to login to the system.
+        /// </summary>
+        /// <param name="pass"></param>
+        /// <returns>true if pass is correct.</returns> 
+        public bool Login(string pass)
+        {
+            // check if password attempt is correct
+            if (pass == password)
+            {
+                lblPassword.Text = "Congratulations.  Welcome to the Darkweb.";
+                txtPassword.Hide();
+                btnLogin.Hide();
+                return true;
+            }
+            return false;
+        }
+
+
+        private void LoginForm_Load(object sender, EventArgs e)
+        {
+            try
+            {
+                using (StreamReader username = new StreamReader("cookie.txt"))
+                {
+                    txtUsername.Text = username.ReadLine();
+
+                    if (txtUsername.Text == "firs.last")
+                    {
+                        throw new Exception("Did not change cookie file.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+
+            password = GeneratePassword();
+            scrambledPassword = Scramble(password);
+
+            PasswordCrackingForm frmCracker = new PasswordCrackingForm(this, txtPassword);
+            frmCracker.Show();
+            frmCracker.BringToFront();
+        }
+
+        private void btnLogin_Click(object sender, EventArgs e)
+        {
+            if (!Login(txtPassword.Text))
+            {
+                MessageBox.Show("Login failed");
+            }
+        }
+
+    }
+}
